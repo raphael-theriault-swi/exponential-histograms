@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Exponential Histograms</title>
+	</head>
+	<body>
+		<main>
+			<div class="prefix">
+				<h1>Exponential histograms</h1>
+				<a href="#interactive">Jump to interactive view</a>
+				<p>
+					Exponential histograms are histograms that, instead of encoding
+					explicit bucket boundaries, encode a scale factor used to define the
+					boundaries with an exponential function. This document uses
+					<a
+						href="https://opentelemetry.io/docs/specs/otel/metrics/data-model/#exponentialhistogram"
+						>OpenTelemetry's definition and encoding</a
+					>
+					for exponential histograms but the general concepts should be broadly
+					applicable.
+				</p>
+				<p>
+					Exponential histograms encode a scale factor $s$, a sample count for
+					the zero $Z$ bucket, lists of sample counts for both positive $P$ and
+					negative $N$ buckets, and optionally positive $o_P$ and negative $o_N$
+					offsets. From these values we can derive a set of functions to define
+					bucket boundaries.
+				</p>
+				<!-- prettier-ignore -->
+				<p class="math">
+					$$\begin{align}
+            b &= 2^{2^{(-s)}} \\[8pt]
+
+            f(i, o) &= \begin{cases}
+              b^{i+o} & \small{\text{if } i \text{ is a valid index}} \\
+              \infty  & \small{\text{otherwise}}
+            \end{cases} \\
+
+            f_P(i) &=  f(i ,\: o_P) \\
+            f_N(i) &= -f(i ,\: o_N) \\[8pt]
+
+            Z    &= \left[\: f_N(0)   ,\: f_P(0)   \:\right] \\
+            P(i) &= \left(\: f_P(i)   ,\: f_P(i+1) \:\right] \\
+            N(i) &= \left[\: f_N(i+1) ,\: f_N(i)   \:\right)
+          \end{align}$$
+				</p>
+				<ol>
+					<li class="mb">Derive the base $b$ of the exponential curve</li>
+					<li>Derive the bucket boundary $f$ for index $i$ and offset $o$</li>
+					<li>Derive the positive bucket boundary $f_P$ for index $i$</li>
+					<li class="mb">
+						Derive the negative bucket boundary $f_N$ for index $i$
+					</li>
+					<li>Derive the zero bucket $Z$</li>
+					<li>Derive the positive bucket $P$ for index $i$</li>
+					<li>Derive the negative bucket $N$ for index $i$</li>
+				</ol>
+				<details>
+					<summary>Interactive version</summary>
+					<iframe
+						src="https://www.desmos.com/calculator/dypgatwx21"
+						frameborder="0"
+					></iframe>
+				</details>
+				<h2>Perfect subsetting</h2>
+				<p>
+					Here's a table showing the value of $f$ for different scales assuming
+					$o = 0$, stolen from
+					<a
+						href="https://dyladan.me/histograms/2023/05/04/exponential-histograms/"
+						>this excellent blog post by Daniel Dyla</a
+					>
+					that highlights an essential property of exponential histograms.
+				</p>
+				<table>
+					<thead>
+						<tr>
+							<th>$i$</th>
+							<th>$s = -1$</th>
+							<th>$s = 0$</th>
+							<th>$s = 1$</th>
+							<th>$s = 3$</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td>-1</td>
+							<td>0.25</td>
+							<td>0.5</td>
+							<td>0.7071</td>
+							<td>0.9170</td>
+						</tr>
+						<tr>
+							<td>0</td>
+							<td><strong>1</strong></td>
+							<td><strong>1</strong></td>
+							<td><strong>1</strong></td>
+							<td><strong>1</strong></td>
+						</tr>
+						<tr>
+							<td>1</td>
+							<td><strong>4</strong></td>
+							<td>2</td>
+							<td>1.4142</td>
+							<td>1.0905</td>
+						</tr>
+						<tr>
+							<td>2</td>
+							<td><strong>16</strong></td>
+							<td><strong>4</strong></td>
+							<td>2</td>
+							<td>1.1892</td>
+						</tr>
+						<tr>
+							<td>3</td>
+							<td><strong>64</strong></td>
+							<td>8</td>
+							<td>2.8284</td>
+							<td>1.2968</td>
+						</tr>
+						<tr>
+							<td>4</td>
+							<td><strong>256</strong></td>
+							<td><strong>16</strong></td>
+							<td><strong>4</strong></td>
+							<td>1.4142</td>
+						</tr>
+						<tr>
+							<td>5</td>
+							<td>1024</td>
+							<td>32</td>
+							<td>5.6569</td>
+							<td>1.5422</td>
+						</tr>
+						<tr>
+							<td>6</td>
+							<td>4096</td>
+							<td><strong>64</strong></td>
+							<td>8</td>
+							<td>1.6818</td>
+						</tr>
+						<tr>
+							<td>7</td>
+							<td>16384</td>
+							<td>128</td>
+							<td>11.3137</td>
+							<td>1.8340</td>
+						</tr>
+						<tr>
+							<td>8</td>
+							<td>65536</td>
+							<td><strong>256</strong></td>
+							<td><strong>16</strong></td>
+							<td>2</td>
+						</tr>
+						<tr>
+							<td>9</td>
+							<td>262144</td>
+							<td>512</td>
+							<td>22.6274</td>
+							<td>2.1810</td>
+						</tr>
+					</tbody>
+				</table>
+				<p>
+					Every time the scale is incremented by 1, a new boundary is inserted
+					between existing ones. To generalise, given two histograms $H_1$ and
+					$H_2$ with scales $s_1$ and $s_2$, each bucket from $H_1$ can fit
+					$2^{s_2 - s_1}$ buckets from $H_2$.
+				</p>
+				<p>
+					If $s$ is encoded as an integer, any two histograms can be merged as
+					the buckets from the histogram with a larger scale will always be
+					perfect subsets of the buckets from the other. The relative error of
+					the result will also always be at most the same as the relative error
+					of the histogram with a smaller scale.
+				</p>
+				<p>
+					In cases where the offsets $o_1 \neq 0$ or $o_2 \neq 0$, some extra
+					steps are required but perfect subsetting still holds.
+				</p>
+				<p>
+					Instead of describing the process of merging exponential histograms,
+					this document provides a live interactive view of two of them in OTLP
+					format. The third view lists the steps required to merge them and the
+					final result. The
+					<a
+						href="https://github.com/raphael-theriault-swi/exponential-histograms"
+						>implementation</a
+					>
+					itself can also serve as a useful reference.
+				</p>
+				<h2>Advantages over explicit histograms</h2>
+				<p>
+					There's no need to explain why the ability to merge any two histograms
+					without a loss in precision is a good thing. But exponential
+					histograms are superior to explicit ones both for data ingestion and
+					analysis and for instrumentation and data collection for other less
+					obvious reasons.
+				</p>
+				<p>
+					Quantile estimation for exponential histograms is more accurate. Some
+					level of interpolation is always required when estimating quantiles,
+					and for explicit histograms this needs to be done on a best effort
+					basis. On the other hand exponential histograms encode the exact
+					function to be used for interpolation.
+				</p>
+				<p>
+					At instrumentation time, explicit histograms need to specify explicit
+					bucket boundaries in which samples will be placed. There's no good
+					one-size-fits-all solution as the range of values produced can vary
+					wildly between applications, and not a high likelyhood of most
+					customers explicitly specifying buckets per application either.
+				</p>
+				<p>
+					With exponential histograms, the instrumentation library can simply
+					start by picking a high initial scale (which produces smaller
+					buckets). If a recorded sample does not fit within the current range
+					of buckets, it's possible to either add new buckets or dynamically
+					change the scale to a lower one (which will produce bigger buckets).
+					Outside the most extreme cases the resulting histogram will provide a
+					good summary of the sampled data.
+				</p>
+			</div>
+
+			<hr id="interactive" />
+
+			<div class="histogram">
+				<div class="chart"><canvas height="192"></canvas></div>
+				<div class="editor"></div>
+			</div>
+			<div class="histogram">
+				<div class="chart"><canvas height="192"></canvas></div>
+				<div class="editor"></div>
+			</div>
+
+			<div class="histogram">
+				<div class="chart"><canvas height="192"></canvas></div>
+				<div class="editor"></div>
+			</div>
+		</main>
+
+		<script lang="javascript">
+			MathJax = {
+				tex: {
+					tags: "ams",
+					inlineMath: [
+						["$", "$"],
+						["\\(", "\\)"],
+					],
+				},
+			}
+		</script>
+		<script type="module" src="./src/main.ts"></script>
+	</body>
+</html>

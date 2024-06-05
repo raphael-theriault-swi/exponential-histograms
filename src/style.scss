@@ -1,0 +1,115 @@
+$border: 1px solid rgba(black, 0.5);
+
+* {
+	margin: 0;
+	padding: 0;
+}
+
+html,
+body {
+	width: 100%;
+	font-size: large;
+	line-height: 150%;
+}
+
+h1 {
+	margin: 16px 0;
+}
+
+h2 {
+	margin: 12px 0;
+}
+
+th {
+	border-bottom: $border;
+	text-align: center;
+}
+
+td:first-child {
+	text-align: center;
+}
+
+td,
+th {
+	padding: 0px 24px 0px 8px;
+
+	&:not(:first-child) {
+		border-left: $border;
+	}
+	&:not(:last-child) {
+		border-right: $border;
+	}
+}
+
+table {
+	border-collapse: collapse;
+}
+
+p,
+details,
+iframe {
+	width: 100%;
+}
+
+ol,
+table {
+	margin: 0px 8px;
+}
+
+main {
+	width: 100%;
+	box-sizing: border-box;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	padding: 32px;
+	gap: 32px;
+}
+
+ol {
+	list-style-position: inside;
+}
+
+hr,
+iframe {
+	border: $border;
+}
+
+iframe {
+	height: 384px;
+}
+
+hr,
+.prefix,
+.histogram {
+	width: 100%;
+	max-width: 720px;
+}
+
+.prefix {
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: 16px;
+}
+
+.math {
+	font-size: larger;
+}
+
+.mb {
+	margin-bottom: 8px;
+}
+
+.chart {
+	width: 100%;
+	canvas {
+		width: 100%;
+	}
+}
+
+.editor {
+	width: 100%;
+	height: 192px;
+	border: $border;
+}

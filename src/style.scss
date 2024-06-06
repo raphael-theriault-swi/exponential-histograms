@@ -52,6 +52,7 @@ iframe {
 }
 
 ol,
+ul,
 table,
 .math {
 	margin: 0px 8px;
@@ -74,7 +75,8 @@ main {
 	gap: 32px;
 }
 
-ol {
+ol,
+ul {
 	list-style-position: inside;
 }
 

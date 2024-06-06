@@ -33,11 +33,7 @@
 					$$\begin{align}
             b &= 2^{2^{(-s)}} \\[8pt]
 
-            f(i, o) &= \begin{cases}
-              b^{i+o} & \small{\text{if } i \text{ is a valid index}} \\
-              \infty  & \small{\text{otherwise}}
-            \end{cases} \\
-
+            f(i, o) &= b^{i+o} \\
             f_P(i) &=  f(i ,\: o_P) \\
             f_N(i) &= -f(i ,\: o_N) \\[8pt]
 
@@ -237,6 +233,7 @@
 			</div>
 
 			<div class="histogram">
+				<ul class="info"></ul>
 				<div class="chart"><canvas height="192"></canvas></div>
 				<div class="editor"></div>
 			</div>
@@ -246,10 +243,8 @@
 			MathJax = {
 				tex: {
 					tags: "ams",
-					inlineMath: [
-						["$", "$"],
-						["\\(", "\\)"],
-					],
+					inlineMath: [["$", "$"]],
+					displayMath: [["$$", "$$"]],
 				},
 			}
 		</script>

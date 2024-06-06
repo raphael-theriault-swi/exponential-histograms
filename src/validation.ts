@@ -54,11 +54,11 @@ export function random(): ExponentialHistogram {
 		scale: scale!,
 		zeroCount: zeroCount,
 		positive: {
-			offset: positiveOffset,
+			offset: positiveOffset! - 2,
 			bucketCounts: [...counts.subarray(0, positiveCount)],
 		},
 		negative: {
-			offset: negativeOffset,
+			offset: negativeOffset! - 2,
 			bucketCounts: [...counts.subarray(positiveCount)],
 		},
 	}

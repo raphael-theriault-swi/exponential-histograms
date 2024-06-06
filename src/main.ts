@@ -1,54 +1,67 @@
 import "./style.scss"
 import "mathjax/tex-chtml"
 
+import { merge } from "./algo"
 import * as charts from "./charts"
 import * as monaco from "./monaco"
-import { parse, random } from "./validation"
+import type { ExponentialHistogram } from "./validation"
 
-// init html elements
-const histograms =
-	document.querySelectorAll<HTMLDivElement>("main > .histogram")
-for (const [id, div] of histograms.entries()) {
-	const chartCanvas = div.querySelector<HTMLCanvasElement>(".chart > canvas")!
-	const editorDiv = div.querySelector<HTMLDivElement>(".editor")!
-	if (id + 1 === histograms.length) {
-		mergedHistogram(chartCanvas, editorDiv)
-	} else {
-		histogram(id, chartCanvas, editorDiv)
-	}
-}
+const [first, second, merged] = [
+	...document.querySelectorAll<HTMLDivElement>("main > .histogram"),
+]
+
+const updateMerged = mergedHistogram(merged!)
+histogram(0, first!, updateMerged)
+histogram(1, second!, updateMerged)
 
 function histogram(
-	id: number,
-	chartCanvas: HTMLCanvasElement,
-	editorDiv: HTMLDivElement,
+	id: 0 | 1,
+	div: HTMLDivElement,
+	updateMerged: (id: 0 | 1, data: ExponentialHistogram) => void,
 ) {
+	const chartCanvas = div.querySelector<HTMLCanvasElement>(".chart > canvas")!
+	const editorDiv = div.querySelector<HTMLDivElement>(".editor")!
+
 	const chart = charts.create(chartCanvas)
 	monaco.create(id, editorDiv, {}, (data) => {
 		charts.update(id, chart, data)
+		updateMerged(id, data)
 	})
 }
 
 function mergedHistogram(
-	chartCanvas: HTMLCanvasElement,
-	editorDiv: HTMLDivElement,
-) {
-	const construction = String.raw`
- _   _           _                                          
-| | | |_ __   __| | ___ _ __                                
-| | | | '_ \ / _' |/ _ \ '__|                               
-| |_| | | | | (_| |  __/ |                                  
- \___/|_| |_|\__,_|\___|_|                                  
-  ____                _                   _   _             
- / ___|___  _ __  ___| |_ _ __ _   _  ___| |_(_) ___  _ __  
-| |   / _ \| '_ \/ __| __| '__| | | |/ __| __| |/ _ \| '_ \ 
-| |__| (_) | | | \__ \ |_| |  | |_| | (__| |_| | (_) | | | |
- \____\___/|_| |_|___/\__|_|   \__,_|\___|\__|_|\___/|_| |_|
-`.slice(1, -1)
+	div: HTMLDivElement,
+): (id: 0 | 1, data: ExponentialHistogram) => void {
+	const infoList = div.querySelector<HTMLUListElement>(".info")!
+	const chartCanvas = div.querySelector<HTMLCanvasElement>(".chart > canvas")!
+	const editorDiv = div.querySelector<HTMLDivElement>(".editor")!
 
 	const chart = charts.create(chartCanvas)
 	const editor = monaco.create(-1, editorDiv, {
-		value: construction,
 		readOnly: true,
 	})
+
+	const histograms: [
+		ExponentialHistogram | undefined,
+		ExponentialHistogram | undefined,
+	] = [undefined, undefined]
+
+	return (id, data) => {
+		histograms[id] = data
+		if (!histograms[0] || !histograms[1]) return
+
+		const merged = merge(histograms[0], histograms[1])
+
+		infoList.replaceChildren(
+			...merged.info.map((info) => {
+				const node = document.createElement("li")
+				node.textContent = info
+				return node
+			}),
+		)
+		;(self as unknown as { MathJax: { typeset?(): void } }).MathJax.typeset?.()
+
+		editor.setValue(JSON.stringify(merged.h, null, 2))
+		charts.updateMerged(chart, merged)
+	}
 }

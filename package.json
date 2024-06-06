@@ -15,7 +15,6 @@
 	},
 	"devDependencies": {
 		"@raftario/configs": "raftario/configs",
-		"@types/mathjax": "^0.0.40",
 		"eslint": "^8.57.0",
 		"prettier": "^3.3.0",
 		"sass": "^1.77.4",

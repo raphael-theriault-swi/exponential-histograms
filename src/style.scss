@@ -57,6 +57,13 @@ table,
 	margin: 0px 8px;
 }
 
+table,
+.math {
+	display: block;
+	overflow-x: auto;
+	white-space: nowrap;
+}
+
 main {
 	width: 100%;
 	box-sizing: border-box;

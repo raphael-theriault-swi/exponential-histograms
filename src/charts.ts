@@ -42,7 +42,7 @@ export function create(canvas: HTMLCanvasElement): Chart {
 							if (lowerBound!.startsWith("-")) {
 								lowerBracket = "["
 							}
-							if (upperBound!.startsWith("-")) {
+							if (!upperBound!.startsWith("-")) {
 								upperBracket = "]"
 							}
 

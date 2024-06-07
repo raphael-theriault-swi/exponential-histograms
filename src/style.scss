@@ -47,22 +47,22 @@ table {
 
 p,
 details,
-iframe {
+iframe,
+thead,
+tbody {
 	width: 100%;
 }
 
-ol,
-ul,
+:not(li) > ol,
+:not(li) > ul,
 table,
 .math {
 	margin: 0px 8px;
+	width: calc(100% - 16px);
 }
 
-table,
-.math {
-	display: block;
-	overflow-x: auto;
-	white-space: nowrap;
+li {
+	margin-left: 16px;
 }
 
 main {
@@ -73,11 +73,6 @@ main {
 	align-items: center;
 	padding: 32px;
 	gap: 32px;
-}
-
-ol,
-ul {
-	list-style-position: inside;
 }
 
 hr,
@@ -109,6 +104,12 @@ hr,
 
 .mb {
 	margin-bottom: 8px;
+}
+
+.xscroll {
+	display: block;
+	overflow-x: auto;
+	white-space: nowrap;
 }
 
 .chart {

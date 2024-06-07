@@ -20,8 +20,9 @@ export interface Merged {
 		positive: [number[], number[]]
 		negative: [number[], number[]]
 	}
-	info: string[]
+	info: Info
 }
+export type Info = (string | [string, Info])[]
 
 export function merge(
 	first: ExponentialHistogram,
@@ -60,35 +61,40 @@ export function merge(
 	)
 
 	// This could normally be done while initialising "merged" if we didn't need to print it
+	let info: Info = []
 	for (const { id, h } of [lo, hi]) {
 		if (h.zeroCount) {
 			merged.h.zeroCount += h.zeroCount
 			merged.counts.zero[id] += h.zeroCount
-			merged.info.push(
-				`Adding histogram ${idf(id)}'s zero bucket count to the final zero bucket count.`,
-			)
+			info.push(`$${h.zeroCount}$ from ${idf(id)}`)
 		}
+	}
+	if (info.length > 0) {
+		merged.info.push([`Merging zero buckets`, info])
 	}
 
 	const signs = ["positive", "negative"] as const
 	for (const s of signs) {
+		info = []
+		merged.info.push([`Merging ${s} buckets`, info])
+
 		const loOffset = lo.h[s]?.offset ?? 0
 		const hiOffset = hi.h[s]?.offset ?? 0
 
 		let hiOffsetNorm = hiOffset / factor
-		merged.info.push(
-			`Normalising histogram ${idf(hi.id)}'s ${s} offset to $${hiOffset} \\div ${factor} = ${nf(hiOffsetNorm)}$.`,
+		info.push(
+			`Normalising histogram ${idf(hi.id)}'s offset to $${hiOffset} \\div ${factor} = ${nf(hiOffsetNorm)}$.`,
 		)
 		if (!Number.isInteger(hiOffsetNorm)) {
 			if (hi.h.zeroCount) {
 				hiOffsetNorm = Math.ceil(hiOffsetNorm)
-				merged.info.push(
-					`Rounding up histogram ${idf(hi.id)}'s normalised ${s} offset to ${hiOffsetNorm} as its zero bucket is not empty and virtual empty buckets cannot be placed in it.`,
+				info.push(
+					`Rounding up histogram ${idf(hi.id)}'s normalised offset to ${hiOffsetNorm} as its zero bucket is not empty.`,
 				)
 			} else {
 				hiOffsetNorm = Math.floor(hiOffsetNorm)
-				merged.info.push(
-					`Rounding down histogram ${idf(hi.id)}'s normalised ${s} offset to ${hiOffsetNorm} as its zero bucket is empty and virtual empty buckets can be placed in it.`,
+				info.push(
+					`Rounding down histogram ${idf(hi.id)}'s normalised offset to ${hiOffsetNorm} as its zero bucket is empty.`,
 				)
 			}
 		}
@@ -98,92 +104,77 @@ export function merge(
 		let mergedOffset: number
 		if (loOffset === hiOffsetNorm) {
 			mergedOffset = loOffset
-			merged.info.push(
-				`Histogram ${idf(lo.id)}'s ${s} offset and histogram ${idf(hi.id)}'s normalised ${s} offset are both $${mergedOffset}$ so the final offset is also $${mergedOffset}$.`,
+			info.push(
+				`Histogram ${idf(lo.id)}'s offset and histogram ${idf(hi.id)}'s normalised offset are both $${mergedOffset}$.`,
 			)
 		} else if (loOffset < hiOffsetNorm) {
 			if (hi.h.zeroCount) {
 				mergedOffset = hiOffsetNorm
-				merged.info.push(
-					`Histogram ${idf(lo.id)}'s ${s} offset is lower than histogram ${idf(hi.id)}'s normalised ${s} offset, but histogram ${idf(hi.id)}'s zero bucket is not empty so its offset cannot be lowered by placing virtual empty buckets in it. The final ${s} offset is histogram ${idf(hi.id)}'s normalised offset of $${mergedOffset}$.`,
+				info.push(
+					`Histogram ${idf(lo.id)}'s offset is lower than histogram ${idf(hi.id)}'s normalised offset, but ${idf(hi.id)}'s zero bucket is not empty. Incrementing ${idf(lo.id)}'s offset to $${mergedOffset}$.`,
 				)
 			} else {
 				mergedOffset = loOffset
-				merged.info.push(
-					`Histogram ${idf(lo.id)}'s ${s} offset is lower than histogram ${idf(hi.id)}'s normalised ${s} offset, and histogram ${idf(hi.id)}'s zero bucket is empty so its offset can be lowered by placing virtual empty buckets in it. The final ${s} offset is histogram ${idf(lo.id)}'s offset of $${mergedOffset}$.`,
+				info.push(
+					`Histogram ${idf(lo.id)}'s offset is lower than histogram ${idf(hi.id)}'s normalised offset, and ${idf(hi.id)}'s zero bucket is empty. Decrementing ${idf(hi.id)}'s normalised offset to $${mergedOffset}$.`,
 				)
 			}
 		} else {
 			if (lo.h.zeroCount) {
 				mergedOffset = loOffset
-				merged.info.push(
-					`Histogram ${idf(hi.id)}'s normalised ${s} offset is lower than histogram ${idf(lo.id)}'s ${s} offset, but histogram ${idf(lo.id)}'s zero bucket is not empty so its offset cannot be lowered by placing virtual empty buckets in it. The final ${s} offset is histogram ${idf(lo.id)}'s offset of $${mergedOffset}$.`,
+				info.push(
+					`Histogram ${idf(hi.id)}'s normalised offset is lower than histogram ${idf(lo.id)}'s offset, but ${idf(lo.id)}'s zero bucket is not empty. Incrementing ${idf(hi.id)}'s normalised offset to $${mergedOffset}$.`,
 				)
 			} else {
 				mergedOffset = hiOffsetNorm
-				merged.info.push(
-					`Histogram ${idf(hi.id)}'s normalised ${s} offset is lower than histogram ${idf(lo.id)}'s ${s} offset, and histogram ${idf(lo.id)}'s zero bucket is empty so its offset can be lowered by placing virtual empty buckets in it. The final ${s} offset is histogram ${idf(hi.id)}'s normalised offset of $${mergedOffset}$.`,
+				info.push(
+					`Histogram ${idf(hi.id)}'s normalised offset is lower than histogram ${idf(lo.id)}'s offset, and ${idf(lo.id)}'s zero bucket is empty. Decrementing ${idf(lo.id)}'s offset to $${mergedOffset}$.`,
 				)
 			}
 		}
 		merged.h[s].offset = mergedOffset
 
-		// The following normally would not need to be duplicated
-
 		const loFirstBucket = mergedOffset - loOffset
-		if (loFirstBucket > 0) {
-			for (let i = 0; i < loFirstBucket; i++) {
-				const count = lo.h[s]?.bucketCounts?.[i] ?? 0
-				merged.h.zeroCount += count
-				merged.counts.zero[lo.id] += count
-			}
-			merged.info.push(
-				`Adding the counts from histogram ${idf(lo.id)}'s ${s} buckets under index $${mergedOffset} - ${loOffset} = ${loFirstBucket}$ to the final zero bucket count.`,
-			)
-		} else if (loFirstBucket < 0) {
-			merged.info.push(
-				`Adding $${loOffset} - ${mergedOffset} = ${-loFirstBucket}$ virtual empty buckets to histogram ${idf(lo.id)}.`,
-			)
-		}
+		const hiFirstBucket = mergedOffset * factor - hiOffset
+		console.log(
+			`${s} ${mergedOffset} * ${factor} - ${hiOffset} = ${hiFirstBucket}`,
+		)
 
-		const hiFirstBucket = (mergedOffset - hiOffsetNorm) * factor
-		if (hiFirstBucket > 0) {
-			for (let i = 0; i < hiFirstBucket; i++) {
-				const count = hi.h[s]?.bucketCounts?.[i] ?? 0
-				merged.h.zeroCount += count
-				merged.counts.zero[hi.id] += count
-			}
-			merged.info.push(
-				`Adding the counts from histogram ${idf(hi.id)}'s ${s} buckets under index $(${mergedOffset} - ${hiOffsetNorm}) \\cdot ${factor} = ${hiFirstBucket}$ to the final zero bucket count.`,
-			)
-		} else if (hiFirstBucket < 0) {
-			merged.info.push(
-				`Adding $(${hiOffsetNorm} - ${mergedOffset}) \\cdot ${factor} = ${-hiFirstBucket}$ virtual empty buckets to histogram ${idf(hi.id)}.`,
-			)
-		}
-
+		let extraInfo: Info
 		for (const { firstBucket, h, id, f } of [
 			{ ...lo, firstBucket: loFirstBucket, f: 1 },
 			{ ...hi, firstBucket: hiFirstBucket, f: factor },
 		]) {
+			extraInfo = []
+			if (h[s]?.bucketCounts?.length) {
+				info.push([`Merging ${idf(id)}`, extraInfo])
+			}
+
 			for (
-				let sourceIdx = firstBucket;
+				let sourceIdx = Math.min(0, firstBucket);
 				sourceIdx < (h[s]?.bucketCounts?.length ?? 0);
 				sourceIdx++
 			) {
-				const mergedIdx = Math.floor((sourceIdx - firstBucket) / f)
 				const count = h[s]?.bucketCounts?.[sourceIdx] ?? 0
 
-				merged.h[s].bucketCounts![mergedIdx] ??= 0
-				merged.h[s].bucketCounts![mergedIdx] += count
+				if (sourceIdx < firstBucket) {
+					extraInfo.push(`$${count}$ from bucket ${sourceIdx} into zero bucket`)
 
-				merged.counts[s][id]![mergedIdx] ??= 0
-				merged.counts[s][id]![mergedIdx] += count
+					merged.h.zeroCount += count
+					merged.counts.zero[id] += count
+				} else {
+					const mergedIdx = Math.floor((sourceIdx - firstBucket) / f)
+					extraInfo.push(
+						`$${count}$ from bucket ${sourceIdx} into bucket ${mergedIdx}`,
+					)
+
+					merged.h[s].bucketCounts![mergedIdx] ??= 0
+					merged.h[s].bucketCounts![mergedIdx] += count
+
+					merged.counts[s][id]![mergedIdx] ??= 0
+					merged.counts[s][id]![mergedIdx] += count
+				}
 			}
-
-			merged.info.push(
-				`Adding the counts from histogram ${idf(id)}'s ${s} buckets to the final ${s} bucket counts.`,
-			)
 		}
 	}
 

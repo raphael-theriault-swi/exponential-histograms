@@ -1,7 +1,7 @@
 import "./style.scss"
 import "mathjax/tex-chtml"
 
-import { merge } from "./algo"
+import { type Info, merge } from "./algo"
 import * as charts from "./charts"
 import * as monaco from "./monaco"
 import type { ExponentialHistogram } from "./validation"
@@ -32,7 +32,7 @@ function histogram(
 function mergedHistogram(
 	div: HTMLDivElement,
 ): (id: 0 | 1, data: ExponentialHistogram) => void {
-	const infoList = div.querySelector<HTMLUListElement>(".info")!
+	const infoList = div.querySelector<HTMLUListElement>(".info > ul")!
 	const chartCanvas = div.querySelector<HTMLCanvasElement>(".chart > canvas")!
 	const editorDiv = div.querySelector<HTMLDivElement>(".editor")!
 
@@ -52,16 +52,29 @@ function mergedHistogram(
 
 		const merged = merge(histograms[0], histograms[1])
 
-		infoList.replaceChildren(
-			...merged.info.map((info) => {
-				const node = document.createElement("li")
-				node.textContent = info
-				return node
-			}),
-		)
+		renderInfo(infoList, merged.info)
 		;(self as unknown as { MathJax: { typeset?(): void } }).MathJax.typeset?.()
 
 		editor.setValue(JSON.stringify(merged.h, null, 2))
 		charts.updateMerged(chart, merged)
 	}
+}
+
+function renderInfo(parent: HTMLUListElement, info: Info) {
+	parent.replaceChildren(
+		...info.map((info) => {
+			const node = document.createElement("li")
+			if (typeof info === "string") {
+				node.textContent = info
+			} else {
+				const [title, nestedInfo] = info
+				const nestedParent = document.createElement("ul")
+				renderInfo(nestedParent, nestedInfo)
+
+				node.textContent = title
+				node.append(nestedParent)
+			}
+			return node
+		}),
+	)
 }
